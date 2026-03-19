@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ancient Kingdom — Ultimate</title>
+<link href="/static/style.css" rel="stylesheet">
+<link href="/static/mainstyle.css" rel="stylesheet">
+<script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+
+</head>
+<body>
+
+
+<!-- SOUND EFFECTS (Web Audio) -->
+
+<script>
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function getCtx() { if(!audioCtx) audioCtx = new AudioCtx(); return audioCtx; }
+
+function playClick() {
+try {
+const ctx = getCtx(); const o = ctx.createOscillator(); const g = ctx.createGain();
+o.connect(g); g.connect(ctx.destination);
+o.frequency.value = 800; g.gain.value = 0.08;
+o.start(); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.08);
+o.stop(ctx.currentTime+0.08);
+} catch(e){}
+}
+function playEvent() {
+try {
+const ctx = getCtx();
+[220,180,140].forEach((f,i) => {
+const o = ctx.createOscillator(); const g = ctx.createGain();
+o.connect(g); g.connect(ctx.destination);
+o.frequency.value = f; o.type = 'sawtooth';
+g.gain.value = 0; const t = ctx.currentTime + i*0.12;
+g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.1,t+0.05);
+g.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+o.start(t); o.stop(t+0.3);
+});
+} catch(e){}
+}
+function playSuccess() {
+try {
+const ctx = getCtx();
+[440,550,660].forEach((f,i) => {
+const o = ctx.createOscillator(); const g = ctx.createGain();
+o.connect(g); g.connect(ctx.destination);
+o.frequency.value = f; o.type = 'sine';
+const t = ctx.currentTime + i*0.1;
+g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.08,t+0.04);
+g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+o.start(t); o.stop(t+0.25);
+});
+} catch(e){}
+}
+
+// theme
+let darkMode = false;
+function toggleTheme() {
+darkMode = !darkMode;
+document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+document.querySelector('.toggle-dark').classList.toggle('on', darkMode);
+playClick();
+}
+
+// sound toggle
+let soundOn = true;
+function toggleSound(el) {
+soundOn = !soundOn;
+el.classList.toggle('on', soundOn);
+}
+
+function popSound() { if(soundOn) playClick(); }
+function eventSound() { if(soundOn) playEvent(); }
+function successSound() { if(soundOn) playSuccess(); }
+
+function openP(id) { popSound(); document.getElementById(id).classList.add('open'); }
+function closeP(id) { popSound(); document.getElementById(id).classList.remove('open'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+document.querySelectorAll('.popup-overlay').forEach(el => {
+el.addEventListener('click', e => { if(e.target===el){ popSound(); el.classList.remove('open'); } });
+});
+});
+
+function selectChoice(text) {
+successSound();
+const input = document.getElementById('cmdInput');
+input.value = text; input.focus();
+document.getElementById('chronicleFeed').scrollTop = 99999;
+}
+function focusInput() { popSound(); document.getElementById('cmdInput').focus(); }
+
+function triggerCrisis() {
+eventSound();
+const phone = document.querySelector('.phone');
+phone.classList.remove('crisis','shake');
+void phone.offsetWidth;
+phone.classList.add('crisis','shake');
+setTimeout(() => phone.classList.remove('crisis','shake'), 2000);
+}
+
+// map tooltip
+let ttTimer;
+function showTile(title, info, action, x, y) {
+popSound();
+const tt = document.getElementById('mapTooltip');
+const map = document.getElementById('mapArea');
+document.getElementById('ttTitle').textContent = title;
+document.getElementById('ttInfo').textContent = info;
+document.getElementById('ttBtn').textContent = action;
+let left = x, top = y;
+if(left + 170 > map.offsetWidth) left = map.offsetWidth - 172;
+if(left < 4) left = 4;
+if(top + 100 > map.offsetHeight) top = y - 100;
+tt.style.left = left+'px'; tt.style.top = top+'px';
+tt.classList.add('show');
+clearTimeout(ttTimer); ttTimer = setTimeout(closeTooltip, 3000);
+}
+function closeTooltip() { document.getElementById('mapTooltip').classList.remove('show'); }
+
+// search log
+function searchLog(val) {
+const items = document.querySelectorAll('.el-item');
+items.forEach(item => {
+item.classList.toggle('hidden', !item.textContent.toLowerCase().includes(val.toLowerCase()));
+});
+}
+</script>
+
+<div class="phone-wrap"></div>
+
+
+<div class="phone" id="phone">
+
+```
+<!-- TOP BAR -->
+<div class="top-bar">
+<div class="tb-btn" onclick="openP('pSettings')" style="position:relative">
+☰
+<div class="badge" id="turn">0</div>
+</div>
+<div class="tb-title">
+📜 พงศาวดาร <span class="kingdomname"></span>
+<small><span id="season"></span> · ปีที่ <span id="year"></span></small>
+</div>
+<div class="tb-btn" onclick="openP('pProfile')">👑</div>
+</div>
+
+<!-- MAIN -->
+<div class="main-layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+<div class="sb-stats">
+
+<div class="sb-stat"><span class="sb-s-icon">💰</span><span class="sb-s-val currency">0</span></div>
+<div class="sb-stat"><span class="sb-s-icon">🌾</span><span class="sb-s-val supplies">0</span></div>
+<div class="sb-stat"><span class="sb-s-icon">👥</span><span class="sb-s-val population">0</span></div>
+<div class="sb-stat"><span class="sb-s-icon">⚔️</span><span class="sb-s-val army_size">0</span></div>
+<div class="sb-stat"><span class="sb-s-icon">⚖️</span><span class="sb-s-val stability_percent">0</span><span class="sb-s-val">%</span></div>
+</div>
+<div class="sb-menu">
+<div class="sb-btn-wrap">
+<div class="sb-btn" onclick="openP('pKingdom')"><span class="sb-icon">🏛️</span>อาณาจักร</div>
+</div>
+<div class="sb-btn-wrap">
+<div class="sb-btn" onclick="openP('pResource')"><span class="sb-icon">📦</span>ทรัพย์</div>
+</div>
+<div class="sb-btn-wrap">
+<div class="sb-btn" onclick="openP('pPeople')">
+<span class="sb-icon">👥</span>ราษฎร์
+</div>
+</div>
+<div class="sb-btn-wrap">
+<div class="sb-btn" onclick="openP('pArmy')"><span class="sb-icon">🗡️</span>กองทัพ</div>
+</div>
+<div class="sb-btn-wrap">
+<div class="sb-btn" onclick="openP('pLog')"><span class="sb-icon">📖</span>บันทึก</div>
+</div>
+<div class="sb-btn-wrap">
+<div class="sb-btn" onclick="openP('pTimeline')"><span class="sb-icon">📅</span>Timeline</div>
+</div>
+</div>
+</div>
+
+<!-- CHRONICLE -->
+<div class="chronicle" id="chronicleFeed">
+<div class="chapter-head">
+<div class="ch-num " id="chapter"></div>
+<div class="ch-title" id="chapter_title"></div>
+<div class="ch-date " id="current_date"></div>
+</div>
+
+<div class="entry-ai">
+<div class="entry-label">⚔️ Game Master</div>
+<p class="entry-text ">ยินดีต้อนรับท่านผู้ปกครองสู่ปฐมบทแห่งอาณาจักรที่กำลังจะจารึกไว้ในหน้าประวัติศาสตร์  </p>
+<p class="entry-text">ก่อนอื่นข้าขอทราบชื่อของท่าน </p>
+
+</div>
+
+<div class="ornament">✦ · ✦ · ✦</div>
+
+
+</div>
+</div>
+
+<!-- INPUT -->
+<div class="input-bar">
+<input class="input-field" id="cmdInput" placeholder="จารึกคำสั่ง...">
+<button class="send-btn" id="send-btn">✍️ บัญชา</button>
+</div>
+
+<!-- ════ POPUPS ════ -->
+
+<!-- Settings -->
+<div class="popup-overlay" id="pSettings"><div class="popup-sheet">
+<div class="popup-header"><div class="popup-title">☰ เมนู & Settings(ยังไม่เสร็จ)</div><div class="popup-close" onclick="closeP('pSettings')">✕</div></div>
+<div class="popup-body">
+<div class="pop-section"><div class="pop-st">การแสดงผล</div>
+<div class="settings-item">
+<div class="si-l"><div class="si-ic">🌙</div><div class="si-lb">Dark Mode</div></div>
+<div class="toggle toggle-dark" onclick="toggleTheme()"></div>
+</div>
+<div class="settings-item">
+<div class="si-l"><div class="si-ic">🔊</div><div class="si-lb">เสียงเอฟเฟกต์</div></div>
+<div class="toggle on" onclick="toggleSound(this)"></div>
+</div>
+</div>
+<div class="pop-section"><div class="pop-st">ทดสอบ Effects</div>
+<div class="settings-item" onclick="triggerCrisis();closeP('pSettings')">
+<div class="si-l"><div class="si-ic">⚠️</div><div class="si-lb">จำลอง Crisis Animation</div></div>
+<div class="si-ar">›</div>
+</div>
+<div class="settings-item" onclick="successSound();closeP('pSettings')">
+<div class="si-l"><div class="si-ic">🎵</div><div class="si-lb">ทดสอบเสียง Success</div></div>
+<div class="si-ar">›</div>
+</div>
+<div class="settings-item" onclick="eventSound();closeP('pSettings')">
+<div class="si-l"><div class="si-ic">🎵</div><div class="si-lb">ทดสอบเสียง Event</div></div>
+<div class="si-ar">›</div>
+</div>
+</div>
+<div class="pop-section"><div class="pop-st">เกม</div>
+<div class="settings-item"><div class="si-l"><div class="si-ic">💾</div><div class="si-lb">บันทึกเกม</div></div><div class="si-ar">›</div></div>
+<div class="settings-item"><div class="si-l"><div class="si-ic">📂</div><div class="si-lb">โหลดเกม</div></div><div class="si-ar">›</div></div>
+<div class="settings-item"><div class="si-l"><div class="si-ic">🚪</div><div class="si-lb">ออกจากเกม</div></div><div class="si-ar">›</div></div>
+</div>
+</div>
+</div></div>
+
+<!-- Profile -->
+<div class="popup-overlay" id="pProfile"><div class="popup-sheet light">
+<div class="popup-header"><div class="popup-title">👑 Kingdom Profile</div><div class="popup-close" onclick="closeP('pProfile')">✕</div></div>
+<div class="popup-body">
+<div class="pop-section"><div class="pop-st">อาณาจักร</div>
+<div class="pop-row"><span class="pop-key">ชื่อ</span><span class="pop-val pgold kingdomname"></span></div>
+<div class="pop-row"><span class="pop-key">ภูมิประเทศ</span><span class="pop-val" id="terrain"></span></div>
+<div class="pop-row"><span class="pop-key">Reputation</span><span class="pop-val pgreen" id="reputation"></span></div>
+</div>
+<div class="pop-section"><div class="pop-st">ผู้นำ — <span id="kingname"></span> · Traits: <span id="traits"></span></div>
+<div class="stat-grid">
+<div class="stat-box"><div class="sb-lbl">การทหาร</div><div class="sb-v" id="military"></div><div class="sb-b"><div class="sb-bf" style="width:70%"></div></div></div>
+<div class="stat-box"><div class="sb-lbl">ปัญญา</div><div class="sb-v" id="intelligence"></div><div class="sb-b"><div class="sb-bf" style="width:35%"></div></div></div>
+<div class="stat-box"><div class="sb-lbl">การบริหาร</div><div class="sb-v" id="management"></div><div class="sb-b"><div class="sb-bf" style="width:80%"></div></div></div>
+<div class="stat-box"><div class="sb-lbl">การทูต</div><div class="sb-v" id="diplomacy"></div><div class="sb-b"><div class="sb-bf" style="width:95%"></div></div></div>
+</div>
+</div>
+</div>
+</div></div>
+
+<!-- Kingdom + MAP -->
+<div class="popup-overlay" id="pKingdom"><div class="popup-sheet light">
+<div class="popup-header"><div class="popup-title">🏛️ อาณาจักร</div><div class="popup-close" onclick="closeP('pKingdom')">✕</div></div>
+<div class="popup-body">
+<div class="pop-section">
+<div class="pop-st">🗺️ แผนที่<span class="pop-val pgold kingdomname"></span></div>
+<div class="map-container">
+<div class="map-label"><span class="map-label-t">แผนที่อาณาจักร(ยังไม่เสร็จ)</span><span class="map-label-h">กดเพื่อสั่งการ</span></div>
+<div class="map-area" id="mapArea">
+<div class="tile" style="top:15px;left:55px" onclick="showTile('⛰️ เทือกเขาเหนือ','หิน, แร่เหล็ก','สำรวจเพิ่มเติม',55,55)">🏔️</div>
+<div class="tile" style="top:12px;left:120px" onclick="showTile('⛰️ เทือกเขาเหนือ','หิน, แร่เหล็ก','สำรวจเพิ่มเติม',120,55)">🏔️</div>
+<div class="tile" style="top:30px;left:200px" onclick="showTile('🌲 ป่าใหญ่','ไม้, สัตว์ป่า','ตัดไม้ / ล่าสัตว์',190,68)">🌲</div>
+<div class="tile" style="top:48px;left:240px" onclick="showTile('🌲 ป่าใหญ่','ไม้, สัตว์ป่า','ตัดไม้ / ล่าสัตว์',230,85)">🌲</div>
+<div class="tile" style="top:72px;left:25px" onclick="showTile('🌾 ทุ่งนาตะวันตก','50 อาหาร/เทิร์น','ขยายพื้นที่เพาะปลูก',25,108)">🌾</div>
+<div class="tile" style="top:72px;left:65px" onclick="showTile('🌾 ทุ่งนากลาง','40 อาหาร/เทิร์น','ขยายพื้นที่เพาะปลูก',65,108)">🌾</div>
+<div class="tile" style="top:85px;left:148px" onclick="showTile('🏰 วาเรน (เมืองหลัก)','ประชากร 480 | ทหาร 50','จัดการเมือง',138,108)">🏰</div>
+<div class="tile" style="top:100px;left:235px" onclick="showTile('🏘️ หมู่บ้านชาวประมง','ประชากร 80 คน','พัฒนาหมู่บ้าน',220,128)">🏘️</div>
+<div class="tile" style="top:118px;left:52px" onclick="showTile('⛺ ค่ายทหารตะวันตก','กำลังพล 20 คน','เสริมกำลัง',48,143)">⛺</div>
+<div class="tile" style="top:148px;left:8px">🌊</div>
+<div class="tile" style="top:155px;left:45px">🌊</div>
+<div class="tile" style="top:158px;left:105px" onclick="showTile('🌊 ท่าเรือวาเรน','ยุ้งฉาง: กำลังสร้าง 1/3','ดูความคืบหน้า',95,162)">🌊</div>
+<div class="tile" style="top:150px;left:165px">🌊</div>
+<div class="tile" style="top:162px;left:210px">🌊</div>
+<div class="fog-tile" style="top:5px;right:0;width:90px;height:75px" onclick="showTile('❓ ดินแดนลึกลับ','ยังไม่ได้สำรวจ','ส่งทหารสำรวจ',205,50)">❓</div>
+<div class="fog-tile" style="top:75px;right:0;width:55px;height:85px" onclick="showTile('❓ ป่าทึบลึก','ยังไม่ได้สำรวจ','ส่งทหารสำรวจ',235,108)">❓</div>
+<div class="map-tooltip" id="mapTooltip">
+<div class="mt-title" id="ttTitle"></div>
+<div class="mt-info" id="ttInfo"></div>
+<button class="mt-action" id="ttBtn" onclick="closeTooltip()">สั่งการ</button>
+</div>
+</div>
+</div>
+</div>
+<div class="pop-section"><div class="pop-st">ความมั่นคง <span class="stability_percent"></span><span>%</span></div>
+<div class="bar-row2"><div class="bl2">การเมือง</div><div class="bt2"><div class="bf2 g" style="width:75%" id="politics_meter"></div></div><div class="bv2" id="politics">75</div><span>%</span></div>
+<div class="bar-row2"><div class="bl2">เศรษฐกิจ</div><div class="bt2"><div class="bf2 gold" style="width:68%" id="economy_meter"></div></div><div class="bv2"  id="economy">68</div><span>%</span></div>
+<div class="bar-row2"><div class="bl2">ทหาร</div><div class="bt2"><div class="bf2 b" style="width:65%" id="military_meter"></div></div><div class="bv2"  id="military">65</div><span>%</span></div>
+<div class="bar-row2"><div class="bl2">ศาสนา</div><div class="bt2"><div class="bf2 g" style="width:80%" id="religion_meter"></div></div><div class="bv2"  id="religion">80</div><span>%</span></div>
+</div>
+<div class="pop-section" id="projects_display"><div class="pop-st">โปรเจกต์</div>
+
+</div>
+<div class="pop-section" id="Condition_display"><div class="pop-st">Condition</div>
+
+</div>
+</div>
+</div></div>
+
+<!-- Resource -->
+<div class="popup-overlay" id="pResource"><div class="popup-sheet">
+<div class="popup-header"><div class="popup-title">📦 ทรัพยากร</div><div class="popup-close" onclick="closeP('pResource')">✕</div></div>
+<div class="popup-body">
+<div class="pop-section"><div class="pop-st">คลัง</div>
+<div class="pop-row"><span class="pop-key">💰 เงิน</span><span class="pop-val pgold currency_display currency">340</span></div>
+<div class="pop-row"><span class="pop-key">🌾 อาหาร</span><span class="pop-val supplies_display supplies">620</span></div>
+
+</div>
+<div class="pop-section"><div class="pop-st">การผลิต</div>
+<div class="pop-row"><span class="pop-key">ผลผลิต/เทิร์น</span><span class="pop-val pgreen" id="food_per_turn">+50 อาหาร</span></div>
+<div class="pop-row"><span class="pop-key">รายได้/เทิร์น</span><span class="pop-val pgreen" id="income_per_turn">+85 เหรียญ</span></div>
+<div class="pop-row"><span class="pop-key">ค่าใช้จ่าย/เทิร์น</span><span class="pop-val pred" id="expense_per_turn">-52 เหรียญ</span></div>
+</div>
+</div>
+</div></div>
+
+<!-- People -->
+<div class="popup-overlay" id="pPeople"><div class="popup-sheet">
+<div class="popup-header"><div class="popup-title">👥 ราษฎร์</div><div class="popup-close" onclick="closeP('pPeople')">✕</div></div>
+<div class="popup-body">
+<div class="pop-section"><div class="pop-st">ประชากร</div>
+<div class="pop-row"><span class="pop-key">ทั้งหมด</span><span class="pop-val population_display population">0 คน</span></div>
+<div class="pop-row"><span class="pop-key">เกิด/เทิร์น</span><span class="pop-val pgreen" id="birth_rate">+14</span></div>
+<div class="pop-row"><span class="pop-key">ตาย/เทิร์น</span><span class="pop-val pred" id="death_rate">-5</span></div>
+</div>
+<div class="pop-section" id="npcs_display"><div class="pop-st">คนรู้จัก</div>
+
+</div>
+</div>
+</div></div>
+
+<!-- Army -->
+<div class="popup-overlay" id="pArmy"><div class="popup-sheet">
+<div class="popup-header"><div class="popup-title">🗡️ กองทัพ</div><div class="popup-close" onclick="closeP('pArmy')">✕</div></div>
+<div class="popup-body">
+<div class="pop-section"><div class="pop-st">กำลังพล</div>
+<div class="pop-row"><span class="pop-key">ทหารทั้งหมด</span><span class="pop-val army_display army_size">50 คน</span></div>
+<div class="pop-row"><span class="pop-key">ขวัญกำลังใจ</span><span class="pop-val pgreen" id="morale">70%</span></div>
+<div class="pop-row"><span class="pop-key">ค่าใช้จ่าย</span><span class="pop-val pred" id="maintenance_cost">-25/เทิร์น</span></div>
+</div>
+<div class="pop-section"><div class="pop-st">สถานะ</div>
+<div class="pop-row"><span class="pop-key">สงคราม</span><span class="pop-val pgreen" id="war">สงบ</span></div>
+<div class="pop-row"><span class="pop-key">เสบียง</span><span class="pop-val pgold" id="supplies">พอเพียง</span></div>
+</div>
+</div>
+</div></div>
+
+<!-- Log + Search -->
+<div class="popup-overlay" id="pLog"><div class="popup-sheet">
+<div class="popup-header"><div class="popup-title">📖 บันทึกเหตุการณ์(ยังไม่เสร็จ)</div><div class="popup-close" onclick="closeP('pLog')">✕</div></div>
+<div class="popup-body">
+<div class="search-bar">
+<span class="search-icon">🔍</span>
+<input class="search-input" placeholder="ค้นหาเหตุการณ์..." oninput="searchLog(this.value)">
+</div>
+<div id="logList">
+<div class="el-item"><div class="el-turn">บทที่ XII — ปัจจุบัน</div><div class="el-text">⚠️ Condition เปิด: ฤดูหนาวเร็ว + เสบียงต่ำ</div></div>
+<div class="el-item"><div class="el-turn">บทที่ XII</div><div class="el-text">🔨 เริ่มก่อสร้างยุ้งฉางริมท่าเรือ ×2</div></div>
+<div class="el-item"><div class="el-turn">บทที่ X</div><div class="el-text">👥 ประชากรเพิ่ม 420 → 480 คน</div></div>
+<div class="el-item"><div class="el-turn">บทที่ VIII</div><div class="el-text">🌾 ฤดูเก็บเกี่ยว — อาหาร +180</div></div>
+<div class="el-item"><div class="el-turn">บทที่ VI</div><div class="el-text">🤝 ทำสัญญาสันติภาพกับชนเผ่าใต้</div></div>
+<div class="el-item"><div class="el-turn">บทที่ V</div><div class="el-text">⚔️ คาริน รับตำแหน่งแม่ทัพ</div></div>
+<div class="el-item"><div class="el-turn">บทที่ III</div><div class="el-text">🏗️ สร้างค่ายทหารตะวันตกแล้วเสร็จ</div></div>
+<div class="el-item"><div class="el-turn">บทที่ I</div><div class="el-text">👑 ลอเรียล สถาปนาอาณาจักรวาเรน</div></div>
+</div>
+</div>
+</div></div>
+
+<!-- Timeline -->
+<div class="popup-overlay" id="pTimeline"><div class="popup-sheet light">
+<div class="popup-header"><div class="popup-title">📅 Timeline อาณาจักร(ยังไม่เสร็จ)</div><div class="popup-close" onclick="closeP('pTimeline')">✕</div></div>
+<div class="popup-body">
+<div class="timeline">
+<div class="tl-item">
+<div class="tl-dot crisis"></div>
+<div class="tl-year">⚠️ ปีที่ 3 — บทที่ 1 (ปัจจุบัน)</div>
+<div class="tl-text">ฤดูหนาวมาเร็วผิดปกติ เสบียงต่ำ — กำลังก่อสร้างยุ้งฉางเพื่อรับมือ</div>
+</div>
+<div class="tl-item">
+<div class="tl-dot good"></div>
+<div class="tl-year">🤝 ปีที่ 3 — บทที่ 0</div>
+<div class="tl-text">ทำสัญญาสันติภาพกับชนเผ่าใต้ เปิดเส้นทางการค้าใหม่</div>
+</div>
+
+</div>
+</div>
+</div></div>
+
+<!-- NPC -->
+
+
+<script src="/static/block_add.js"></script>
+<script src="/static/change_data.js"></script>
+
+ ```
+</div>
+</div>
+
+</body>
+</html>
