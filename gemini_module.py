@@ -10,7 +10,8 @@ class ai_model():
     def __init__(self):
         load_dotenv()
         gemini_key = os.getenv("api_key")
-        genai.configure(gemini_key)
+        print(gemini_key)
+        genai.configure(api_key=gemini_key)
 
         # ── Upload PDF ONCE at game start ──────────────────────────
         with open("prompts/game_master.txt", "r", encoding="utf-8") as f:

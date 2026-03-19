@@ -5,10 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Ancient Kingdom — Ultimate</title>
-<link href="/static/style.css" rel="stylesheet">
-<link href="/static/mainstyle.css" rel="stylesheet">
+<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='mainstyle.css') }}" rel="stylesheet">
+
 <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
 
+
+<link rel="icon" href="favicon.ico" type="image/x-icon" />
 </head>
 <body>
 
@@ -18,7 +21,13 @@
 <script>
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx;
-function getCtx() { if(!audioCtx) audioCtx = new AudioCtx(); return audioCtx; }
+function getCtx() { 
+  if(!audioCtx) audioCtx = new AudioCtx(); 
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx; 
+}
 
 function playClick() {
 try {
@@ -27,7 +36,7 @@ o.connect(g); g.connect(ctx.destination);
 o.frequency.value = 800; g.gain.value = 0.08;
 o.start(); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.08);
 o.stop(ctx.currentTime+0.08);
-} catch(e){}
+} catch(e){console.error('fail load sound', e)}
 }
 function playEvent() {
 try {
@@ -415,7 +424,6 @@ item.classList.toggle('hidden', !item.textContent.toLowerCase().includes(val.toL
 
 <script src="/static/block_add.js"></script>
 <script src="/static/change_data.js"></script>
-
  ```
 </div>
 </div>
