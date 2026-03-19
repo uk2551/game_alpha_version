@@ -5,7 +5,8 @@ from gemini_module import ai_model
 
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+port = int(os.environ.get("PORT", 4000))
+
 model = ai_model()
 
 @app.route('/')
@@ -37,9 +38,8 @@ def handle_data(data):
 app.run(debug=False)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
 
-    socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+    app.run(host="0.0.0.0", port=port)
    
 
 
