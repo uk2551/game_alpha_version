@@ -2,6 +2,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 from gemini_module import ai_model
+import os
 
 
 app = Flask(__name__)
