@@ -24,7 +24,6 @@ def test(data):
 
     emit('update_html', respond, broadcast=True)
 
-# Function to push data every second
 @socketio.on('send_to_python')
 def handle_data(data):
     player_input = data['value']
@@ -32,14 +31,14 @@ def handle_data(data):
     respond = model.send_massage(player_input)
     print(respond)
 
-    # 2. Python sends it back to HTML (broadcast=True updates all users)
+    
     emit('update_html', respond, broadcast=True)
 
 app.run(debug=False)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    # Use 0.0.0.0 so Render can "see" the app
+    port = int(os.environ.get("PORT", 10000))
+
     socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
    
 
