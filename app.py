@@ -6,6 +6,7 @@ import os
 
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 port = int(os.environ.get("PORT", 4000))
 
 model = ai_model()
