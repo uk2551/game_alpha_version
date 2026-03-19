@@ -38,6 +38,9 @@ def handle_data(data):
 app.run(debug=False)
 
 if __name__ == '__main__':
-    socketio.run(app)
-app = Flask(__name__)
+    port = int(os.environ.get("PORT", 5000))
+    # Use 0.0.0.0 so Render can "see" the app
+    socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+   
+
 
